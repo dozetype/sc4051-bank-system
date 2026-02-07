@@ -1,0 +1,7 @@
+.idea/
+build/
+.DS_STORE
+.env
+.vscode/
+*.code-workspace
+.history/
