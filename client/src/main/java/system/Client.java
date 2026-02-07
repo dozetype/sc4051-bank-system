@@ -1,15 +1,15 @@
 package system;
+
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.net.SocketException;
 import java.net.SocketTimeoutException;
-import java.net.UnknownHostException;
 
 import ui.UI;
 
 public class Client {
+
     // 1. Settings are moved to the top for easy changing
     private static final String SERVER_IP = "localhost";
     private static final int SERVER_PORT = 2222;
@@ -20,12 +20,11 @@ public class Client {
     private final char[] accountPassword = new char[12];
     private int accountID;
 
-
     public static void main(String[] args) {
         new Client().run();
     }
 
-    private void run(){
+    private void run() {
         loginOrCreate();
         menu();
         exit();
@@ -47,7 +46,9 @@ public class Client {
                 System.out.print("Select: ");
 
                 String choice = ui.inputString();
-                if (choice.equalsIgnoreCase("exit")) exit();
+                if (choice.equalsIgnoreCase("exit")) {
+                    exit();
+                }
 
                 String requestProtocol = "";
 
@@ -58,15 +59,19 @@ public class Client {
                     System.out.print("Password: ");
                     String pass = ui.inputString();
                     // Format: LOGIN:user:pass
-                    requestProtocol = "5:LOGIN" + user.length()+ ":" + user + pass.length()+ ":" + pass;
+                    requestProtocol = "5:LOGIN" + user.length() + ":" + user + pass.length() + ":" + pass;
 
                 } else if (choice.equals("2")) {
                     System.out.print("New Username: ");
                     String user = ui.inputString();
                     System.out.print("New Password: ");
                     String pass = ui.inputString();
+                    System.out.print("Currency: ");
+                    String currency = ui.inputString();
+                    System.out.print("Initial Deposit: ");
+                    String initialDeposit = ui.inputString();
                     // Format: REGISTER:user:pass
-                    requestProtocol = "8:REGISTER:" + user.length()+ ":" + user + pass.length()+ ":" + pass;
+                    requestProtocol = "8:REGISTER" + user.length() + ":" + user + pass.length() + ":" + pass + currency.length() + ":" + currency + initialDeposit.length() + ":" + initialDeposit;
 
                 } else {
                     System.out.println("Invalid option.");
@@ -77,16 +82,7 @@ public class Client {
                 String serverReply = sendAndReceiveWithReply(socket, serverAddress, requestProtocol);
 
                 if (serverReply != null) {
-                    if (serverReply.startsWith("SUCCESS")) {
-                        System.out.println(">> Access Granted!");
-//                        accountPassword =
-                        isLoggedIn = true; // Breaks the loop, moves to menu()
-
-                        // Optional: Save the username for later
-                        this.accountName = requestProtocol.split(":")[1];
-                    } else {
-                        System.out.println(">> Failed: " + serverReply);
-                    }
+                    System.out.println("Reply: " + serverReply);
                 }
             }
         } catch (Exception e) {
@@ -95,7 +91,7 @@ public class Client {
         }
     }
 
-    private void menu(){
+    private void menu() {
     }
 
     private String sendAndReceiveWithReply(DatagramSocket socket, InetAddress address, String message) {
@@ -127,7 +123,7 @@ public class Client {
         }
     }
 
-    private void exit(){
+    private void exit() {
         System.out.println("\nThank you for using our application!");
         System.exit(0);
     }
