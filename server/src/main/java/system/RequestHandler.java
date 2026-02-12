@@ -30,36 +30,89 @@ class RequestHandler {
     }
 
     private String login(List<String> data) {
-        if (data.size() < 3) return "FAIL: Missing arguments";
+        if (data.size() < 3) return "23:FAIL: Missing arguments";
 
-        String username = data.get(1);
+        Integer accountId = tryParseInt(data.get(1));
+        if (accountId == null) return "19:FAIL: Invalid Input";
         String password = data.get(2);
+        Account acc = accHandler.getAccountByID(accountId);
 
-        if (accHandler.getAccountByUsername(username) == null) {
-            String message = "FAIL: User not found";
-            return message.length() + ":" + message;
-        }
-        Account acc = accHandler.getAccountByUsername(username);
-        if (acc.getPassword().equals(password)) {
-            int accountId = acc.getAccountId();
-            return "12:LOGINSUCCESS"+Integer.toString(accountId).length()+":"+accountId;
-        }
-        return "20:FAIL: Wrong password";
+        String authError = authenticate(acc, password, null);
+        if (authError != null) return authError;
+
+        return "12:LOGINSUCCESS"+Integer.toString(accountId).length()+":"+accountId;
     }
 
     private String register(List<String> data) {
-        if (data.size() < 4) return "23:FAIL: Missing arguments";
+        if (data.size() < 5) return "23:FAIL: Missing arguments";
+
         String username = data.get(1);
-        if (accHandler.getAccountByUsername(username) != null) {
-            String message = "FAIL: Username already exists";
-            return message.length() + ":" + message;
-        }
         String password = data.get(2);
-        CurrencyType currency = CurrencyType.valueOf(data.get(3));
+        CurrencyType currency = CurrencyType.valueOf(data.get(3)); // TODO: Handle incorrect enum
         float initialBalance = Float.parseFloat(data.get(4));
+
         Integer accountId = accHandler.getIDCounter();
         Integer newID = accHandler.addAccount(new Account(username, password, currency, initialBalance, accountId));
+
         return "15:REGISTERSUCCESS"+Integer.toString(newID).length()+":"+newID;
+    }
+
+    /**
+     *
+     * @param data
+     * (1)Username
+     * (2)ID
+     * (3)Password
+     * @return Success or Error Message
+     */
+    private String closeAccount(List<String> data) {
+        if (data.size() < 4) return "23:FAIL: Missing arguments";
+
+        String username = data.get(1);
+        Integer accountID = tryParseInt(data.get(2));
+        if (accountID == null) return "19:FAIL: Invalid Input";
+        String password = data.get(3);
+        Account acc = accHandler.getAccountByID(accountID);
+
+        String authError = authenticate(acc, password, username);
+        if (authError != null) return authError;
+
+        accHandler.closeAccount(acc);
+        return "12:CLOSESUCCESS";
+    }
+
+    private String deposit(List<String> data) {
+        if (data.size() < 6) return "23:FAIL: Missing arguments";
+
+        String username = data.get(1);
+        Integer accountId = tryParseInt(data.get(2));
+        if (accountId == null) return "19:FAIL: Invalid Input";
+        String password = data.get(3);
+        CurrencyType currency = CurrencyType.valueOf(data.get(4)); // TODO: handle Currency
+        float depositAmount = Float.parseFloat(data.get(5));
+        Account acc = accHandler.getAccountByID(accountId);
+
+        String authError = authenticate(acc, password, username);
+        if (authError != null) return authError;
+
+        String currBalance = String.valueOf(acc.setBalance(depositAmount));
+        return "14:DEPOSITSUCCESS"+currBalance.length()+":"+currBalance.length();
+    }
+
+    /**
+     *
+     * @param acc
+     * @param password
+     * @param username Add Username only when it needs to check against it with acc
+     * @return
+     */
+    private String authenticate(Account acc, String password, String username) {
+        if (acc == null) return "23:FAIL: Account not found";
+        if (!acc.getPassword().equals(password)) return "20:FAIL: Wrong password";
+        if (username != null && !acc.getUsername().equals(username)) {
+            return "23:FAIL: Username mismatch";
+        }
+        return null;
     }
 
     // Helper to decode the "Length:Value" format
@@ -81,5 +134,13 @@ class RequestHandler {
             cursor = dataStart + length;
         }
         return parts;
+    }
+
+    private Integer tryParseInt(String value) {
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            return null; // Instead of crashing, we return null to handle it gracefully
+        }
     }
 }

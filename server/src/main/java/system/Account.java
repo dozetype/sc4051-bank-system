@@ -34,7 +34,8 @@ public class Account {
     public void setCurrency(CurrencyType currency) {
         this.currency = currency;
     }
-    public void setBalance(float balance) {
+    public float setBalance(float balance) {
         this.balance += balance;
+        return this.balance;
     }
 }

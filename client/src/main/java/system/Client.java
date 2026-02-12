@@ -11,7 +11,7 @@ import ui.UI;
 public class Client {
 
     // 1. Settings are moved to the top for easy changing
-    private static final String SERVER_IP = "10.91.142.119"; // localhost
+    private static final String SERVER_IP = "localhost"; // localhost, 10.91.x.x
     private static final int SERVER_PORT = 2222;
     private static final int TIMEOUT_MS = 3000;
     private static final int BUFFER_SIZE = 512;
@@ -54,7 +54,7 @@ public class Client {
 
                 // 1. Gather Input & Build Protocol String
                 if (choice.equals("1")) {
-                    System.out.print("Username: ");
+                    System.out.print("Account Number: ");
                     String user = ui.inputString();
                     System.out.print("Password: ");
                     String pass = ui.inputString();
