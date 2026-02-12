@@ -1,3 +1,4 @@
+#Go to java/ folder run javac system/*.java, then run java system.server
 .idea/
 build/
 .DS_STORE
@@ -5,3 +6,4 @@ build/
 .vscode/
 *.code-workspace
 .history/
+*.class
