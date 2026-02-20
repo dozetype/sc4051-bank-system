@@ -1,26 +1,30 @@
 package system;
 
-import java.util.ArrayList;
 import java.util.List;
 
 class RequestHandler {
     private final AccountHandler accHandler = new AccountHandler();
 
-    public String handleRequest(String rawData) {
+    public String handleRequest(List<String> parts) {
         try {
-            List<String> parts = parsePacket(rawData);
-
             if (parts.isEmpty()) return "ERROR: Empty Packet";
 
             String command = parts.getFirst();
 
-            // Simple switch to route commands
-            if (command.equals("LOGIN")) {
-                return login(parts);
+            switch (command) {
+                case "CREATEACCOUNT" -> {
+                    return createAccount(parts);
+                }
+                case "CLOSEACCOUNT" -> {
+                    return closeAccount(parts);
+                }
+                case "DEPOSIT" -> {
+                    return deposit(parts);
+                }
+                default -> {
+                }
             }
-            else if (command.equals("REGISTER")) {
-                return register(parts);
-            }
+
             String message = "UNKNOWN_COMMAND";
             return message.length() + ": " + message;
         } catch (Exception e) {
@@ -29,21 +33,7 @@ class RequestHandler {
         }
     }
 
-    private String login(List<String> data) {
-        if (data.size() < 3) return "23:FAIL: Missing arguments";
-
-        Integer accountId = tryParseInt(data.get(1));
-        if (accountId == null) return "19:FAIL: Invalid Input";
-        String password = data.get(2);
-        Account acc = accHandler.getAccountByID(accountId);
-
-        String authError = authenticate(acc, password, null);
-        if (authError != null) return authError;
-
-        return "12:LOGINSUCCESS"+Integer.toString(accountId).length()+":"+accountId;
-    }
-
-    private String register(List<String> data) {
+    private String createAccount(List<String> data) {
         if (data.size() < 5) return "23:FAIL: Missing arguments";
 
         String username = data.get(1);
@@ -54,7 +44,7 @@ class RequestHandler {
         Integer accountId = accHandler.getIDCounter();
         Integer newID = accHandler.addAccount(new Account(username, password, currency, initialBalance, accountId));
 
-        return "15:REGISTERSUCCESS"+Integer.toString(newID).length()+":"+newID;
+        return "20:CREATEACCOUNTSUCCESS"+Integer.toString(newID).length()+":"+newID;
     }
 
     /**
@@ -115,30 +105,9 @@ class RequestHandler {
         return null;
     }
 
-    // Helper to decode the "Length:Value" format
-    private List<String> parsePacket(String packet) {
-        List<String> parts = new ArrayList<>();
-        int cursor = 0;
-
-        while (cursor < packet.length()) {
-            int delimiterPos = packet.indexOf(':', cursor);
-            if (delimiterPos == -1) break;
-
-            String lengthStr = packet.substring(cursor, delimiterPos);
-            int length = Integer.parseInt(lengthStr);
-
-            int dataStart = delimiterPos + 1;
-            String data = packet.substring(dataStart, dataStart + length);
-
-            parts.add(data);
-            cursor = dataStart + length;
-        }
-        return parts;
-    }
-
     private Integer tryParseInt(String value) {
         try {
-            return Integer.parseInt(value);
+            return Integer.valueOf(value);
         } catch (NumberFormatException e) {
             return null; // Instead of crashing, we return null to handle it gracefully
         }

@@ -12,7 +12,7 @@ import (
 
 // ===== Constants =====
 const (
-	SERVER_IP   = "192.168.18.15"
+	SERVER_IP   = "localhost"
 	SERVER_PORT = 2222
 	TIMEOUT_MS  = 3000
 	BUFFER_SIZE = 512
@@ -82,7 +82,7 @@ func startMenu(input io.Reader, conn *net.UDPConn) {
 			// After successful login, go to main menu
 			mainMenu(input, conn)
 		case "2":
-			handleRegister(input, conn)
+			handleCreateAccount(input, conn)
 		default:
 			fmt.Println("Invalid option.")
 		}
@@ -170,9 +170,9 @@ func handleLogin(input io.Reader, conn *net.UDPConn) {
 	fmt.Println("Reply:", reply)
 }
 
-// ===== Register Handler =====
-// Format: 8:REGISTER<userLength>:<username><passLength>:<password><currencyLength>:<currency><depositLength>:<initialDeposit>
-func handleRegister(input io.Reader, conn *net.UDPConn) {
+// ===== CreateAccount Handler =====
+// Format: 13:CREATEACCOUNT<userLength>:<username><passLength>:<password><currencyLength>:<currency><depositLength>:<initialDeposit>
+func handleCreateAccount(input io.Reader, conn *net.UDPConn) {
 	fmt.Print("New Username: ")
 	user, err := readLine(input)
 	if err != nil {
@@ -201,7 +201,7 @@ func handleRegister(input io.Reader, conn *net.UDPConn) {
 		return
 	}
 
-	requestProtocol := fmt.Sprintf("8:REGISTER%d:%s%d:%s%d:%s%d:%s",
+	requestProtocol := fmt.Sprintf("13:CREATEACCOUNT%d:%s%d:%s%d:%s%d:%s",
 		len(user), user,
 		len(pass), pass,
 		len(currency), currency,
