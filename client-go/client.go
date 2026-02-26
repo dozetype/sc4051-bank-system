@@ -24,24 +24,23 @@ type Menu struct {
 	Options []string
 }
 
-// ===== Global Menus =====
-var startMenuObj = Menu{
-	Title: "START MENU: type 'exit' to quit",
-	Options: []string{
-		"Login",
-		"Create New Account",
-	},
-}
+// ===== Menu Display =====
 
 var mainMenuObj = Menu{
 	Title: "MAIN MENU: type 'exit' to quit",
 	Options: []string{
+		"Create Account",
 		"Delete Account",
 		"Deposit",
 		"Withdraw",
-		"Logout",
+		"View Balance",
+		"Register for Updates",
 	},
 }
+
+// ===== UDP Channels =====
+var replyChan = make(chan string)
+var callbackChan = make(chan string)
 
 // ===== Entry Point =====
 func main() {
@@ -59,32 +58,37 @@ func main() {
 	}
 	defer conn.Close()
 
+	// Start Central UDP listener
+	go udpListener(conn, replyChan, callbackChan)
+
+	// Print callbacks if registered
+	go func() {
+		for cb := range callbackChan {
+			fmt.Println("\n📢 CALLBACK:", cb)
+		}
+	}()
+
 	// Start the program flow
-	startMenu(os.Stdin, conn)
+	mainMenu(os.Stdin, conn)
 }
 
-// ===== Start Menu =====
-func startMenu(input io.Reader, conn *net.UDPConn) {
+// ===== UDP Listener =====
+func udpListener(conn *net.UDPConn, replyChan, callbackChan chan string) {
+	buffer := make([]byte, 2048)
+
 	for {
-		choice, err := showMenu(input, startMenuObj)
+		n, _, err := conn.ReadFromUDP(buffer)
 		if err != nil {
-			fmt.Println("Input error:", err)
+			fmt.Println("Read error:", err)
 			continue
 		}
 
-		if choice == "exit" {
-			exit()
-		}
+		msg := string(buffer[:n])
 
-		switch choice {
-		case "1":
-			handleLogin(input, conn)
-			// After successful login, go to main menu
-			mainMenu(input, conn)
-		case "2":
-			handleCreateAccount(input, conn)
-		default:
-			fmt.Println("Invalid option.")
+		if strings.HasPrefix(msg, "8:CALLBACK") {
+			callbackChan <- msg
+		} else {
+			replyChan <- msg
 		}
 	}
 }
@@ -104,14 +108,17 @@ func mainMenu(input io.Reader, conn *net.UDPConn) {
 
 		switch choice {
 		case "1":
-			handleDelete(input, conn)
+			handleCreateAccount(input, conn)
 		case "2":
-			handleDeposit(input, conn)
+			handleDelete(input, conn)
 		case "3":
-			handleWithdraw(input, conn)
+			handleDeposit(input, conn)
 		case "4":
-			fmt.Println("Logging out...")
-			return // Go back to start menu
+			handleWithdraw(input, conn)
+		case "5":
+			handleViewBalance(input, conn)
+		case "6":
+			handleRegister(input, conn)
 		default:
 			fmt.Println("Invalid option.")
 		}
@@ -119,29 +126,18 @@ func mainMenu(input io.Reader, conn *net.UDPConn) {
 }
 
 // ===== UDP Send / Receive =====
-func sendRequestReceiveReply(conn *net.UDPConn, message string) string {
-	buffer := make([]byte, BUFFER_SIZE)
+func sendRequestReceiveReply(conn *net.UDPConn, request string) string {
+	_, err := conn.Write([]byte(request))
+	if err != nil {
+		fmt.Println("Send error:", err)
+		return ""
+	}
 
-	for {
-		_, err := conn.Write([]byte(message))
-		if err != nil {
-			fmt.Println("Network Error:", err)
-			return ""
-		}
-
-		conn.SetReadDeadline(time.Now().Add(TIMEOUT_MS * time.Millisecond))
-
-		n, _, err := conn.ReadFromUDP(buffer)
-		if err != nil {
-			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-				fmt.Println("Timeout - retrying...")
-				continue
-			}
-			fmt.Println("Network Error:", err)
-			return ""
-		}
-
-		return string(buffer[:n])
+	select {
+	case reply := <-replyChan:
+		return reply
+	case <-time.After(TIMEOUT_MS * time.Millisecond):
+		return "Timeout waiting for reply"
 	}
 }
 
@@ -208,7 +204,7 @@ func handleCreateAccount(input io.Reader, conn *net.UDPConn) {
 		len(deposit), deposit)
 
 	reply := sendRequestReceiveReply(conn, requestProtocol)
-	fmt.Println("Reply:", reply)
+	parseReply(reply)
 }
 
 // ===== Deletion Handler =====
@@ -243,7 +239,7 @@ func handleDelete(input io.Reader, conn *net.UDPConn) {
 	)
 
 	reply := sendRequestReceiveReply(conn, requestProtocol)
-	fmt.Println("Reply:", reply)
+	parseReply(reply)
 }
 
 // ===== Deposit Handler =====
@@ -293,7 +289,7 @@ func handleDeposit(input io.Reader, conn *net.UDPConn) {
 	)
 
 	reply := sendRequestReceiveReply(conn, requestProtocol)
-	fmt.Println("Reply:", reply)
+	parseReply(reply)
 }
 
 // ===== Withdraw Handler =====
@@ -343,7 +339,57 @@ func handleWithdraw(input io.Reader, conn *net.UDPConn) {
 	)
 
 	reply := sendRequestReceiveReply(conn, requestProtocol)
-	fmt.Println("Reply:", reply)
+	parseReply(reply)
+}
+
+// ===== View Balance Handler =====
+// Format: 4:VIEW<nameLength>:<name><acctLength>:<accountNumber><passLength>:<password>
+func handleViewBalance(input io.Reader, conn *net.UDPConn) {
+	fmt.Print("Account Name: ")
+	name, err := readLine(input)
+	if err != nil {
+		fmt.Println("Input error:", err)
+		return
+	}
+
+	fmt.Print("Account Number: ")
+	accountNumber, err := readLine(input)
+	if err != nil {
+		fmt.Println("Input error:", err)
+		return
+	}
+
+	fmt.Print("Password: ")
+	password, err := readLine(input)
+	if err != nil {
+		fmt.Println("Input error:", err)
+		return
+	}
+
+	requestProtocol := fmt.Sprintf(
+		"4:VIEW%d:%s%d:%s%d:%s",
+		len(name), name,
+		len(accountNumber), accountNumber,
+		len(password), password,
+	)
+
+	reply := sendRequestReceiveReply(conn, requestProtocol)
+	parseReply(reply)
+}
+
+// ===== Callback Register =====
+// Format: 7:MONITOR<timeLength>:<timeSeconds>
+func handleRegister(input io.Reader, conn *net.UDPConn) {
+	fmt.Print("Time in Seconds: ")
+	timeSeconds, err := readLine(input)
+	if err != nil {
+		fmt.Println("Input error:", err)
+		return
+	}
+
+	requestProtocol := fmt.Sprintf("7:MONITOR%d:%s", len(timeSeconds), timeSeconds)
+	reply := sendRequestReceiveReply(conn, requestProtocol)
+	parseReply(reply)
 }
 
 // ===== Helper Functions =====
@@ -364,6 +410,23 @@ func showMenu(input io.Reader, menu Menu) (string, error) {
 	fmt.Print("Select: ")
 
 	return readLine(input)
+}
+
+func parseReply(reply string) {
+	parts := strings.SplitN(reply, ":", 3)
+
+	if len(parts) < 3 {
+		fmt.Println("Invalid reply format:", reply)
+	}
+
+	status := parts[1]
+	message := strings.TrimSpace(parts[2])
+
+	if status == "FAIL" {
+		fmt.Println("Error:", message)
+	} else {
+		fmt.Println("Success:", message)
+	}
 }
 
 func exit() {
