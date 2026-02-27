@@ -21,6 +21,9 @@ class RequestHandler {
                 case "DEPOSIT" -> {
                     return deposit(parts);
                 }
+                case "VIEW" -> {
+                    return view(parts);
+                }
                 default -> {
                 }
             }
@@ -38,7 +41,10 @@ class RequestHandler {
 
         String username = data.get(1);
         String password = data.get(2);
-        CurrencyType currency = CurrencyType.valueOf(data.get(3)); // TODO: Handle incorrect enum
+        CurrencyType currency = CurrencyType.fromString(data.get(3));
+        if (currency == null) {
+            return "27:FAIL: Invalid currency type";
+        }
         float initialBalance = Float.parseFloat(data.get(4));
 
         Integer accountId = accHandler.getIDCounter();
@@ -62,8 +68,8 @@ class RequestHandler {
         Integer accountID = tryParseInt(data.get(2));
         if (accountID == null) return "19:FAIL: Invalid Input";
         String password = data.get(3);
-        Account acc = accHandler.getAccountByID(accountID);
 
+        Account acc = accHandler.getAccountByID(accountID);
         String authError = authenticate(acc, password, username);
         if (authError != null) return authError;
 
@@ -78,15 +84,34 @@ class RequestHandler {
         Integer accountId = tryParseInt(data.get(2));
         if (accountId == null) return "19:FAIL: Invalid Input";
         String password = data.get(3);
-        CurrencyType currency = CurrencyType.valueOf(data.get(4)); // TODO: handle Currency
+        CurrencyType currency = CurrencyType.fromString(data.get(4));
+        if (currency == null) {
+            return "27:FAIL: Invalid currency type";
+        }
         float depositAmount = Float.parseFloat(data.get(5));
-        Account acc = accHandler.getAccountByID(accountId);
 
+        Account acc = accHandler.getAccountByID(accountId);
         String authError = authenticate(acc, password, username);
         if (authError != null) return authError;
 
         String currBalance = String.valueOf(acc.setBalance(depositAmount));
-        return "14:DEPOSITSUCCESS"+currBalance.length()+":"+currBalance.length();
+        return "14:DEPOSITSUCCESS"+currBalance.length()+":"+currBalance;
+    }
+
+    private String view(List<String> data) {
+        if (data.size() < 4) return "23:FAIL: Missing arguments";
+
+        String username = data.get(1);
+        Integer accountId = tryParseInt(data.get(2));
+        if (accountId == null) return "19:FAIL: Invalid Input";
+        String password = data.get(3);
+
+        Account acc = accHandler.getAccountByID(accountId);
+        String authError = authenticate(acc, password, username);
+        if (authError != null) return authError;
+
+        String currBalance = String.valueOf(acc.getBalance());
+        return "11:VIEWSUCCESS"+currBalance.length()+":"+currBalance;
     }
 
     /**

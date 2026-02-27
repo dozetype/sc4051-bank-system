@@ -13,7 +13,7 @@ import (
 
 // ===== Constants =====
 const (
-	SERVER_IP   = "192.168.18.15"
+	SERVER_IP   = "localhost"
 	SERVER_PORT = 2222
 	TIMEOUT_MS  = 3000
 	BUFFER_SIZE = 512

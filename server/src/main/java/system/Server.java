@@ -36,6 +36,9 @@ public class Server {
                 // --- Step 2: Process (The Chef cooks) ---
                 List<String> parts = parsePacket(rawRequest);
                 String reply;
+                ////////////////////////////////
+                System.out.println("Request from: "+ packet.getAddress() +" port"+ packet.getPort());
+                ////////////////////////////////
                 if ("MONITOR".equals(parts.getFirst())){
                     reply = monitorHandler.register(parts.get(1), packet.getAddress(), packet.getPort());
                 }
