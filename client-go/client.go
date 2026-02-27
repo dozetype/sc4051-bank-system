@@ -6,13 +6,14 @@ import (
 	"io"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
 
 // ===== Constants =====
 const (
-	SERVER_IP   = "localhost"
+	SERVER_IP   = "192.168.18.15"
 	SERVER_PORT = 2222
 	TIMEOUT_MS  = 3000
 	BUFFER_SIZE = 512
@@ -58,6 +59,9 @@ func main() {
 	}
 	defer conn.Close()
 
+	fmt.Println("Client local address:", conn.LocalAddr())
+	fmt.Println("Server remote address:", conn.RemoteAddr())
+
 	// Start Central UDP listener
 	go udpListener(conn, replyChan, callbackChan)
 
@@ -84,6 +88,7 @@ func udpListener(conn *net.UDPConn, replyChan, callbackChan chan string) {
 		}
 
 		msg := string(buffer[:n])
+		fmt.Println("DEBUG RECEIVED:", msg) // debug
 
 		if strings.HasPrefix(msg, "8:CALLBACK") {
 			callbackChan <- msg
@@ -126,18 +131,18 @@ func mainMenu(input io.Reader, conn *net.UDPConn) {
 }
 
 // ===== UDP Send / Receive =====
-func sendRequestReceiveReply(conn *net.UDPConn, request string) string {
+func sendRequestReceiveReply(conn *net.UDPConn, request string) (string, error) {
 	_, err := conn.Write([]byte(request))
 	if err != nil {
 		fmt.Println("Send error:", err)
-		return ""
+		return "", err
 	}
 
 	select {
 	case reply := <-replyChan:
-		return reply
+		return reply, nil
 	case <-time.After(TIMEOUT_MS * time.Millisecond):
-		return "Timeout waiting for reply"
+		return "Timeout waiting for reply", fmt.Errorf("timeout")
 	}
 }
 
@@ -162,8 +167,13 @@ func handleLogin(input io.Reader, conn *net.UDPConn) {
 		len(accountNumber), accountNumber,
 		len(password), password)
 
-	reply := sendRequestReceiveReply(conn, requestProtocol)
-	fmt.Println("Reply:", reply)
+	reply, err := sendRequestReceiveReply(conn, requestProtocol)
+	if err != nil {
+		fmt.Println("Request failed:", err)
+		return
+	}
+
+	parseReply(reply)
 }
 
 // ===== CreateAccount Handler =====
@@ -203,12 +213,17 @@ func handleCreateAccount(input io.Reader, conn *net.UDPConn) {
 		len(currency), currency,
 		len(deposit), deposit)
 
-	reply := sendRequestReceiveReply(conn, requestProtocol)
+	reply, err := sendRequestReceiveReply(conn, requestProtocol)
+	if err != nil {
+		fmt.Println("Request failed:", err)
+		return
+	}
+
 	parseReply(reply)
 }
 
 // ===== Deletion Handler =====
-// Format: 6:DELETE<nameLength>:<name><acctLength>:<accountNumber><passLength>:<password>
+// Format: 12:CLOSEACCOUNT<nameLength>:<name><acctLength>:<accountNumber><passLength>:<password>
 func handleDelete(input io.Reader, conn *net.UDPConn) {
 	fmt.Print("Account Name: ")
 	name, err := readLine(input)
@@ -232,13 +247,18 @@ func handleDelete(input io.Reader, conn *net.UDPConn) {
 	}
 
 	requestProtocol := fmt.Sprintf(
-		"6:DELETE%d:%s%d:%s%d:%s",
+		"12:CLOSEACCOUNT%d:%s%d:%s%d:%s",
 		len(name), name,
 		len(accountNumber), accountNumber,
 		len(password), password,
 	)
 
-	reply := sendRequestReceiveReply(conn, requestProtocol)
+	reply, err := sendRequestReceiveReply(conn, requestProtocol)
+	if err != nil {
+		fmt.Println("Request failed:", err)
+		return
+	}
+
 	parseReply(reply)
 }
 
@@ -288,7 +308,12 @@ func handleDeposit(input io.Reader, conn *net.UDPConn) {
 		len(amount), amount,
 	)
 
-	reply := sendRequestReceiveReply(conn, requestProtocol)
+	reply, err := sendRequestReceiveReply(conn, requestProtocol)
+	if err != nil {
+		fmt.Println("Request failed:", err)
+		return
+	}
+
 	parseReply(reply)
 }
 
@@ -338,7 +363,12 @@ func handleWithdraw(input io.Reader, conn *net.UDPConn) {
 		len(amount), amount,
 	)
 
-	reply := sendRequestReceiveReply(conn, requestProtocol)
+	reply, err := sendRequestReceiveReply(conn, requestProtocol)
+	if err != nil {
+		fmt.Println("Request failed:", err)
+		return
+	}
+
 	parseReply(reply)
 }
 
@@ -373,7 +403,12 @@ func handleViewBalance(input io.Reader, conn *net.UDPConn) {
 		len(password), password,
 	)
 
-	reply := sendRequestReceiveReply(conn, requestProtocol)
+	reply, err := sendRequestReceiveReply(conn, requestProtocol)
+	if err != nil {
+		fmt.Println("Request failed:", err)
+		return
+	}
+
 	parseReply(reply)
 }
 
@@ -388,7 +423,13 @@ func handleRegister(input io.Reader, conn *net.UDPConn) {
 	}
 
 	requestProtocol := fmt.Sprintf("7:MONITOR%d:%s", len(timeSeconds), timeSeconds)
-	reply := sendRequestReceiveReply(conn, requestProtocol)
+
+	reply, err := sendRequestReceiveReply(conn, requestProtocol)
+	if err != nil {
+		fmt.Println("Request failed:", err)
+		return
+	}
+
 	parseReply(reply)
 }
 
@@ -413,20 +454,66 @@ func showMenu(input io.Reader, menu Menu) (string, error) {
 }
 
 func parseReply(reply string) {
-	parts := strings.SplitN(reply, ":", 3)
-
-	if len(parts) < 3 {
-		fmt.Println("Invalid reply format:", reply)
+	fields, err := parseFields(reply)
+	if err != nil {
+		fmt.Println("Parse error:", err)
+		return
 	}
 
-	status := parts[1]
-	message := strings.TrimSpace(parts[2])
+	if len(fields) < 2 {
+		fmt.Println("Invalid reply format:", reply)
+		return
+	}
+
+	status := fields[0]
+	message := fields[1]
 
 	if status == "FAIL" {
 		fmt.Println("Error:", message)
 	} else {
 		fmt.Println("Success:", message)
 	}
+}
+
+func parseFields(data string) ([]string, error) {
+	var fields []string
+	index := 0
+
+	for index < len(data) {
+
+		start := index
+		for index < len(data) && data[index] != ':' {
+			index++
+		}
+
+		if index >= len(data) {
+			return nil, fmt.Errorf("missing colon in length prefix")
+		}
+
+		lengthStr := data[start:index]
+
+		length, err := strconv.Atoi(lengthStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid length: %s", lengthStr)
+		}
+
+		// 2️⃣ Skip colon
+		index++
+
+		// 3️⃣ Ensure enough data remains
+		if index+length > len(data) {
+			return nil, fmt.Errorf("field length exceeds message size")
+		}
+
+		// 4️⃣ Extract string
+		field := data[index : index+length]
+		fields = append(fields, field)
+
+		// 5️⃣ Move index forward
+		index += length
+	}
+
+	return fields, nil
 }
 
 func exit() {
