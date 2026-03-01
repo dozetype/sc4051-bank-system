@@ -2,8 +2,9 @@ package system;
 
 import java.util.List;
 
-class RequestHandler {
+public class RequestHandler {
     private final AccountHandler accHandler = new AccountHandler();
+    private final ParseHandler parse = new ParseHandler();
 
     public String handleRequest(List<String> parts) {
         try {
@@ -65,7 +66,7 @@ class RequestHandler {
         if (data.size() < 4) return "23:FAIL: Missing arguments";
 
         String username = data.get(1);
-        Integer accountID = tryParseInt(data.get(2));
+        Integer accountID = parse.tryParseInt(data.get(2));
         if (accountID == null) return "19:FAIL: Invalid Input";
         String password = data.get(3);
 
@@ -81,7 +82,7 @@ class RequestHandler {
         if (data.size() < 6) return "23:FAIL: Missing arguments";
 
         String username = data.get(1);
-        Integer accountId = tryParseInt(data.get(2));
+        Integer accountId = parse.tryParseInt(data.get(2));
         if (accountId == null) return "19:FAIL: Invalid Input";
         String password = data.get(3);
         CurrencyType currency = CurrencyType.fromString(data.get(4));
@@ -102,7 +103,7 @@ class RequestHandler {
         if (data.size() < 4) return "23:FAIL: Missing arguments";
 
         String username = data.get(1);
-        Integer accountId = tryParseInt(data.get(2));
+        Integer accountId = parse.tryParseInt(data.get(2));
         if (accountId == null) return "19:FAIL: Invalid Input";
         String password = data.get(3);
 
@@ -128,13 +129,5 @@ class RequestHandler {
             return "23:FAIL: Username mismatch";
         }
         return null;
-    }
-
-    private Integer tryParseInt(String value) {
-        try {
-            return Integer.valueOf(value);
-        } catch (NumberFormatException e) {
-            return null; // Instead of crashing, we return null to handle it gracefully
-        }
     }
 }
