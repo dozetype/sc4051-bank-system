@@ -68,7 +68,7 @@ func main() {
 	// Print callbacks if registered
 	go func() {
 		for cb := range callbackChan {
-			fmt.Println("\n📢 CALLBACK:", cb)
+			fmt.Println("\nCALLBACK:", cb)
 		}
 	}()
 
@@ -96,6 +96,100 @@ func udpListener(conn *net.UDPConn, replyChan, callbackChan chan string) {
 			replyChan <- msg
 		}
 	}
+}
+
+// ===== UDP Send / Receive =====
+func sendRequestReceiveReply(conn *net.UDPConn, request string) (string, error) {
+
+	retriesLimit := 10
+	fmt.Println("\nChoose Invocation Semantics:")
+	fmt.Println("Default: 0")
+	fmt.Println("At-Least-Once: 1")
+	fmt.Println("At-Most-Once: 2")
+	fmt.Print("Enter choice: ")
+
+	var mode int
+	fmt.Scanln(&mode)
+
+	switch mode {
+
+	case 0:
+		return defaultInvocation(conn, request)
+
+	case 1:
+		return atLeastOnce(conn, request, retriesLimit)
+
+	case 2:
+		return atMostOnce(conn, request, retriesLimit)
+
+	default:
+		return "", fmt.Errorf("invalid invocation mode")
+	}
+}
+
+// ===== Invocation Semantics =====
+func defaultInvocation(conn *net.UDPConn, request string) (string, error) {
+	_, err := conn.Write([]byte(request))
+	if err != nil {
+		fmt.Println("Send error:", err)
+		return "", err
+	}
+
+	select {
+	case reply := <-replyChan:
+		return reply, nil
+	case <-time.After(TIMEOUT_MS * time.Millisecond):
+		return "Timeout waiting for reply", fmt.Errorf("timeout")
+	}
+}
+
+func atLeastOnce(conn *net.UDPConn, request string, retries int) (string, error) {
+
+	baseDelay := 100 * time.Millisecond
+
+	fmt.Println("\nInitial request sent.")
+
+	for i := 0; i < retries; i++ {
+
+		reply, err := defaultInvocation(conn, request)
+		if err == nil {
+			return reply, nil
+		}
+
+		if i == retries-1 {
+			break
+		}
+
+		delay := baseDelay * time.Duration(1<<i)
+
+		fmt.Printf("Retransmission %d will be sent in %v\n", i+1, delay)
+
+		time.Sleep(delay)
+
+		fmt.Printf("\nRetransmission %d sent.\n", i+1)
+	}
+
+	return "", fmt.Errorf("All retries failed")
+}
+
+// <length>:<requestID> appended to the front of request
+func atMostOnce(conn *net.UDPConn, request string, retries int) (string, error) {
+
+	requestID := strconv.FormatInt(time.Now().UnixNano(), 10)
+
+	fullRequest := fmt.Sprintf("%d:%s%s",
+		len(requestID), requestID, request)
+
+	fmt.Println("DEBUG: " + fullRequest) // debug
+	for i := 0; i < retries; i++ {
+
+		reply, err := defaultInvocation(conn, fullRequest)
+		if err == nil {
+			return reply, nil
+		}
+	}
+
+	return "", fmt.Errorf("All retries failed")
 }
 
 // ===== Main Menu =====
@@ -130,22 +224,7 @@ func mainMenu(input io.Reader, conn *net.UDPConn) {
 	}
 }
 
-// ===== UDP Send / Receive =====
-func sendRequestReceiveReply(conn *net.UDPConn, request string) (string, error) {
-	_, err := conn.Write([]byte(request))
-	if err != nil {
-		fmt.Println("Send error:", err)
-		return "", err
-	}
-
-	select {
-	case reply := <-replyChan:
-		return reply, nil
-	case <-time.After(TIMEOUT_MS * time.Millisecond):
-		return "Timeout waiting for reply", fmt.Errorf("timeout")
-	}
-}
-
+/* Depreciated
 // ===== Login Handler =====
 // Format: 5:LOGIN<userLength>:<username><passLength>:<password>
 func handleLogin(input io.Reader, conn *net.UDPConn) {
@@ -175,6 +254,7 @@ func handleLogin(input io.Reader, conn *net.UDPConn) {
 
 	parseReply(reply)
 }
+*/
 
 // ===== CreateAccount Handler =====
 // Format: 13:CREATEACCOUNT<userLength>:<username><passLength>:<password><currencyLength>:<currency><depositLength>:<initialDeposit>
@@ -497,19 +577,15 @@ func parseFields(data string) ([]string, error) {
 			return nil, fmt.Errorf("invalid length: %s", lengthStr)
 		}
 
-		// 2️⃣ Skip colon
 		index++
 
-		// 3️⃣ Ensure enough data remains
 		if index+length > len(data) {
 			return nil, fmt.Errorf("field length exceeds message size")
 		}
 
-		// 4️⃣ Extract string
 		field := data[index : index+length]
 		fields = append(fields, field)
 
-		// 5️⃣ Move index forward
 		index += length
 	}
 
