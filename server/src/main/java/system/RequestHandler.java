@@ -1,6 +1,7 @@
 package system;
 
 import java.util.List;
+import java.util.Map;
 
 public class RequestHandler {
     private final AccountHandler accHandler = new AccountHandler();
@@ -25,6 +26,9 @@ public class RequestHandler {
                 case "VIEW" -> {
                     return view(parts);
                 }
+                case "TRANSFER" -> {
+                    return transfer(parts);
+                }
                 default -> {
                 }
             }
@@ -48,8 +52,8 @@ public class RequestHandler {
         }
         float initialBalance = Float.parseFloat(data.get(4));
 
-        Integer accountId = accHandler.getIDCounter();
-        Integer newID = accHandler.addAccount(new Account(username, password, currency, initialBalance, accountId));
+        Integer accountID = accHandler.getIDCounter();
+        Integer newID = accHandler.addAccount(new Account(username, password, currency, initialBalance, accountID));
 
         return "20:CREATEACCOUNTSUCCESS"+Integer.toString(newID).length()+":"+newID;
     }
@@ -57,9 +61,9 @@ public class RequestHandler {
     /**
      *
      * @param data
-     * (1)Username
-     * (2)ID
-     * (3)Password
+     * (1) Username,
+     * (2) ID,
+     * (3) Password
      * @return Success or Error Message
      */
     private String closeAccount(List<String> data) {
@@ -67,7 +71,6 @@ public class RequestHandler {
 
         String username = data.get(1);
         Integer accountID = parse.tryParseInt(data.get(2));
-        if (accountID == null) return "19:FAIL: Invalid Input";
         String password = data.get(3);
 
         Account acc = accHandler.getAccountByID(accountID);
@@ -82,8 +85,7 @@ public class RequestHandler {
         if (data.size() < 6) return "23:FAIL: Missing arguments";
 
         String username = data.get(1);
-        Integer accountId = parse.tryParseInt(data.get(2));
-        if (accountId == null) return "19:FAIL: Invalid Input";
+        Integer accountID = parse.tryParseInt(data.get(2));
         String password = data.get(3);
         CurrencyType currency = CurrencyType.fromString(data.get(4));
         if (currency == null) {
@@ -91,11 +93,13 @@ public class RequestHandler {
         }
         float depositAmount = Float.parseFloat(data.get(5));
 
-        Account acc = accHandler.getAccountByID(accountId);
+        Account acc = accHandler.getAccountByID(accountID);
         String authError = authenticate(acc, password, username);
         if (authError != null) return authError;
 
-        String currBalance = String.valueOf(acc.setBalance(depositAmount));
+        if (acc.getBalance(currency) + depositAmount < 0) return "26:FAIL: Insufficient balance";
+
+        String currBalance = String.valueOf(acc.updateBalance(currency, depositAmount));
         return "14:DEPOSITSUCCESS"+currBalance.length()+":"+currBalance;
     }
 
@@ -103,16 +107,78 @@ public class RequestHandler {
         if (data.size() < 4) return "23:FAIL: Missing arguments";
 
         String username = data.get(1);
-        Integer accountId = parse.tryParseInt(data.get(2));
-        if (accountId == null) return "19:FAIL: Invalid Input";
+        Integer accountID = parse.tryParseInt(data.get(2));
         String password = data.get(3);
 
-        Account acc = accHandler.getAccountByID(accountId);
+        Account acc = accHandler.getAccountByID(accountID);
+        
         String authError = authenticate(acc, password, username);
         if (authError != null) return authError;
 
-        String currBalance = String.valueOf(acc.getBalance());
-        return "11:VIEWSUCCESS"+currBalance.length()+":"+currBalance;
+        // Construct account current balance
+        StringBuilder reply = new StringBuilder("11:VIEWSUCCESS");
+        for (Map.Entry<CurrencyType, Float> entry : acc.getBalances().entrySet()) {
+            String curr = entry.getKey().toString();
+            String bal = String.valueOf(entry.getValue());
+            
+            reply.append(curr.length()).append(":").append(curr);
+            reply.append(bal.length()).append(":").append(bal);
+        }
+        
+        return reply.toString();
+    }
+
+    /**
+     * @param data
+     * (1) Username,
+     * (2) ID,
+     * (3) Password,
+     * (4) CurrencyType,
+     * (5) Amount,
+     * (6) Reciever ID
+     * @return
+     */
+    private String transfer(List<String> data) { // MAKE SURE TO NOT TRANSFER NEGATIVE AMOUNT ON CLIENT SIDE
+        if (data.size() < 7) return "23:FAIL: Missing arguments";
+
+        // 1. Parse and Basic Validation
+        String username = data.get(1);
+        Integer accountID = parse.tryParseInt(data.get(2));
+        String password = data.get(3);
+        CurrencyType currency = CurrencyType.fromString(data.get(4));
+        if (currency == null) {
+            return "27:FAIL: Invalid currency type";
+        }
+        float amount = Float.parseFloat(data.get(5));
+        Integer recieverID = parse.tryParseInt(data.get(6));
+
+        // 2. Authentication
+        Account acc = accHandler.getAccountByID(accountID);
+        String authError = authenticate(acc, password, username);
+        if (authError != null) return authError;
+
+        // 3. Receiver Validation
+        Account reciever = accHandler.getAccountByID(recieverID);
+        if (reciever == null) return "23:FAIL: Account not found";
+
+        // 4. Balance Check
+        if (acc.getBalance(currency) - amount < 0) return "26:FAIL: Insufficient balance";
+
+        // 5. Transfering
+        acc.updateBalance(currency, -amount);
+        reciever.updateBalance(currency, amount);
+
+        // 6. Response Construction
+        StringBuilder reply = new StringBuilder("15:TRANSFERSUCCESS");
+        for (Map.Entry<CurrencyType, Float> entry : acc.getBalances().entrySet()) {
+            String curr = entry.getKey().toString();
+            String bal = String.valueOf(entry.getValue());
+            
+            reply.append(curr.length()).append(":").append(curr);
+            reply.append(bal.length()).append(":").append(bal);
+        }
+        
+        return reply.toString();
     }
 
     /**

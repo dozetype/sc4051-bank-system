@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 public class Server {
     private static final int PORT = 2222;
     private static final int BUFFER_SIZE = 1000;
+    private final double packetLossRate = 0.5; // Choose values between 0.0 and 1.0
     private InvocationSemantic invocationSemantic;
 
     public static void main(String[] args) {
@@ -39,7 +40,7 @@ public class Server {
 
     private void run(){
         RequestHandler handler = new RequestHandler();
-        MonitorHandler monitorHandler = new MonitorHandler();
+        MonitorHandler monitorHandler = new MonitorHandler(packetLossRate);
         
         try (DatagramSocket socket = new DatagramSocket(PORT)) {
             System.out.println("\n^^^^^^^Server running on port " + PORT + "...^^^^^^^");
@@ -62,7 +63,9 @@ public class Server {
                     packet.getAddress(),
                     packet.getPort()
                 );
-                socket.send(sendPacket);
+
+                // Simulating Packet Loss
+                if (Math.random() > packetLossRate) socket.send(sendPacket);
                 monitorHandler.callback(("8:CALLBACK"+reply).getBytes(StandardCharsets.UTF_8), socket);
             }
         } catch (Exception e) {

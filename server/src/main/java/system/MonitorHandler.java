@@ -10,6 +10,11 @@ import java.util.concurrent.ConcurrentHashMap;
 public class MonitorHandler {
     private final Map<InetAddress, ClientInfo> clients = new ConcurrentHashMap<>();
     private final ParseHandler parse = new ParseHandler();
+    private final double packetLossRate;
+
+    public MonitorHandler(double packetLossRate){
+        this.packetLossRate = packetLossRate;
+    }
 
     /**
      * @param timeString
@@ -34,8 +39,8 @@ public class MonitorHandler {
                 clients.remove(ip);
             } else {
                 try {
-                    DatagramPacket packet = new DatagramPacket(responseBytes, responseBytes.length, ip, info.port);
-                    socket.send(packet);
+                    DatagramPacket sendPacket = new DatagramPacket(responseBytes, responseBytes.length, ip, info.port);
+                    if (Math.random() > packetLossRate) socket.send(sendPacket);
                 } catch (IOException e) {
                     System.out.println("Failed to send to " + ip);
                 }
