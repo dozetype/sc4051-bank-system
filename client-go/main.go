@@ -1,0 +1,134 @@
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"net"
+	"os"
+	"strings"
+)
+
+// ===== Constants =====
+const (
+	SERVER_IP   = "localhost"
+	SERVER_PORT = 2222
+	TIMEOUT_MS  = 3000
+	BUFFER_SIZE = 512
+)
+
+// ===== Menu Struct =====
+type Menu struct {
+	Title   string
+	Options []string
+}
+
+// ===== Menu Display =====
+var mainMenuObj = Menu{
+	Title: "MAIN MENU: type 'exit' to quit",
+	Options: []string{
+		"Create Account",
+		"Delete Account",
+		"Deposit",
+		"Withdraw",
+		"View Balance",
+		"Transfer",
+		"Register for Updates",
+	},
+}
+
+// ===== UDP Channels =====
+var replyChan = make(chan string)
+var callbackChan = make(chan string)
+
+// ===== Entry Point =====
+func main() {
+
+	// Resolve server address
+	serverAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", SERVER_IP, SERVER_PORT))
+	if err != nil {
+		panic(err)
+	}
+
+	// Create UDP connection
+	conn, err := net.DialUDP("udp", nil, serverAddr)
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close()
+
+	fmt.Println("Client local address:", conn.LocalAddr())
+	fmt.Println("Server remote address:", conn.RemoteAddr())
+
+	// Start Central UDP listener
+	go udpListener(conn, replyChan, callbackChan)
+
+	// Print callbacks if registered
+	go func() {
+		for cb := range callbackChan {
+			fmt.Println("\nCALLBACK:", cb)
+		}
+	}()
+
+	reader := bufio.NewReader(os.Stdin)
+
+	// Start the program flow
+	mainMenu(reader, conn)
+}
+
+// ===== Main Menu =====
+func mainMenu(input *bufio.Reader, conn *net.UDPConn) {
+	for {
+		choice, err := showMenu(input, mainMenuObj)
+		if err != nil {
+			fmt.Println("Input error:", err)
+			continue
+		}
+
+		if choice == "exit" {
+			exit()
+		}
+
+		switch choice {
+		case "1":
+			handleCreateAccount(input, conn)
+		case "2":
+			handleCloseAccount(input, conn)
+		case "3":
+			handleDeposit(input, conn)
+		case "4":
+			handleWithdraw(input, conn)
+		case "5":
+			handleViewBalance(input, conn)
+		case "6":
+			handleTransfer(input, conn)
+		case "7":
+			handleRegister(input, conn)
+		default:
+			fmt.Println("Invalid option.")
+		}
+	}
+}
+
+func exit() {
+	fmt.Println("\nThank you for using our application!")
+	os.Exit(0)
+}
+
+// ===== Helper Functions =====
+func readLine(reader *bufio.Reader) (string, error) {
+	input, err := reader.ReadString('\n')
+	if err != nil {
+		return "Failed to read input", err
+	}
+	return strings.TrimSpace(input), nil
+}
+
+func showMenu(input *bufio.Reader, menu Menu) (string, error) {
+	fmt.Println("\n---", menu.Title, "---")
+	for i, option := range menu.Options {
+		fmt.Printf("%d. %s\n", i+1, option)
+	}
+	fmt.Print("Select: ")
+
+	return readLine(input)
+}
