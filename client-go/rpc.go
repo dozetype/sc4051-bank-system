@@ -21,7 +21,6 @@ func udpListener(conn *net.UDPConn, replyChan, callbackChan chan string) {
 		}
 
 		msg := string(buffer[:n])
-		fmt.Println("DEBUG RECEIVED:", msg) // debug
 
 		if strings.HasPrefix(msg, "8:CALLBACK") {
 			callbackChan <- msg
@@ -35,24 +34,16 @@ func udpListener(conn *net.UDPConn, replyChan, callbackChan chan string) {
 func sendRequestReceiveReply(conn *net.UDPConn, request string) (string, error) {
 
 	retriesLimit := 10
-	fmt.Println("\nChoose Invocation Semantics:")
-	fmt.Println("Default: 0")
-	fmt.Println("At-Least-Once: 1")
-	fmt.Println("At-Most-Once: 2")
-	fmt.Print("Enter choice: ")
 
-	var mode int
-	fmt.Scanln(&mode)
+	switch currentMode {
 
-	switch mode {
-
-	case 0:
+	case Base:
 		return defaultInvocation(conn, request)
 
-	case 1:
+	case AtLeastOnce:
 		return atLeastOnce(conn, request, retriesLimit)
 
-	case 2:
+	case AtMostOnce:
 		return atMostOnce(conn, request, retriesLimit)
 
 	default:

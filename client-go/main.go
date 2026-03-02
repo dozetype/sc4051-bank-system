@@ -16,6 +16,16 @@ const (
 	BUFFER_SIZE = 512
 )
 
+type InvocationMode int
+
+const (
+	Base InvocationMode = iota
+	AtLeastOnce
+	AtMostOnce
+)
+
+var currentMode InvocationMode = Base
+
 // ===== Menu Struct =====
 type Menu struct {
 	Title   string
@@ -33,6 +43,15 @@ var mainMenuObj = Menu{
 		"View Balance",
 		"Transfer",
 		"Register for Updates",
+	},
+}
+
+var invocationMenuObj = Menu{
+	Title: "Choose Invocation Semantics:",
+	Options: []string{
+		"Default",
+		"At-Least-Once",
+		"At-Most-Once",
 	},
 }
 
@@ -72,7 +91,32 @@ func main() {
 	reader := bufio.NewReader(os.Stdin)
 
 	// Start the program flow
+	invocationMenu(reader)
 	mainMenu(reader, conn)
+}
+
+// ===== Invocation Menu =====
+func invocationMenu(input *bufio.Reader){
+	mode, err := showMenu(input, invocationMenuObj)
+	if err != nil {
+		fmt.Println("Input error:", err)
+	}
+
+	switch mode {
+
+	case "1":
+		currentMode = Base
+
+	case "2":
+		currentMode = AtLeastOnce
+
+	case "3":
+		currentMode = AtMostOnce
+
+	default:
+		fmt.Println("Invalid choice, using Default mode")
+		currentMode = Base
+	}
 }
 
 // ===== Main Menu =====

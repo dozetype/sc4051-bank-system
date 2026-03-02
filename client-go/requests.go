@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 )
 
 /*
@@ -57,7 +58,7 @@ func handleCreateAccount(input *bufio.Reader, conn *net.UDPConn) {
 		return
 	}
 
-	parseReply(reply)
+	parseReply(reply, nil)
 }
 
 /*
@@ -88,7 +89,7 @@ func handleCloseAccount(input *bufio.Reader, conn *net.UDPConn) {
 		return
 	}
 
-	parseReply(reply)
+	parseReply(reply, nil)
 }
 
 /*
@@ -135,14 +136,18 @@ func handleDeposit(input *bufio.Reader, conn *net.UDPConn) {
 		fmt.Println("Request failed:", err)
 		return
 	}
+	
+	context := map[string]string{
+		"currency": currency,
+	}
 
-	parseReply(reply)
+	parseReply(reply, context)
 }
 
 /*
 ===== Withdraw Handler =====
 Request Format:
-	8:WITHDRAW
+	7:DEPOSIT
 	<nameLength>:<name>
 	<acctLength>:<accountNumber>
 	<passLength>:<password>
@@ -171,7 +176,7 @@ func handleWithdraw(input *bufio.Reader, conn *net.UDPConn) {
 	}
 	amount = "-" + amount
 
-	requestProtocol := fmt.Sprintf("8:WITHDRAW%d:%s%d:%s%d:%s%d:%s%d:%s",
+	requestProtocol := fmt.Sprintf("7:DEPOSIT%d:%s%d:%s%d:%s%d:%s%d:%s",
 		len(name), name,
 		len(accountNumber), accountNumber,
 		len(password), password,
@@ -185,7 +190,11 @@ func handleWithdraw(input *bufio.Reader, conn *net.UDPConn) {
 		return
 	}
 
-	parseReply(reply)
+	context := map[string]string{
+		"currency": currency,
+	}
+
+	parseReply(reply, context)
 }
 
 /*
@@ -216,7 +225,7 @@ func handleViewBalance(input *bufio.Reader, conn *net.UDPConn) {
 		return
 	}
 
-	parseReply(reply)
+	parseReply(reply, nil)
 }
 
 /*
@@ -259,7 +268,7 @@ func handleTransfer(input *bufio.Reader, conn *net.UDPConn) {
 	}
 
 	requestProtocol := fmt.Sprintf(
-		"8:TRANSFER%d:%s%d:%s%d:%s%d:%s%d:%s%d:%s%d:%s",
+		"8:TRANSFER%d:%s%d:%s%d:%s%d:%s%d:%s%d:%s",
 		len(name), name,
 		len(accountNumber), accountNumber,
 		len(password), password,
@@ -274,7 +283,7 @@ func handleTransfer(input *bufio.Reader, conn *net.UDPConn) {
 		return
 	}
 
-	parseReply(reply)
+	parseReply(reply, nil)
 }
 
 /*
@@ -299,7 +308,11 @@ func handleRegister(input *bufio.Reader, conn *net.UDPConn) {
 		return
 	}
 
-	parseReply(reply)
+	context := map[string]string{
+	"seconds": timeSeconds,
+	}
+
+	parseReply(reply, context)
 }
 
 // ===== Helper Functions =====
@@ -334,25 +347,121 @@ func promptVerification(input *bufio.Reader) (string, string, string, error) {
 	return name, accountNumber, password, nil
 }
 
-func parseReply(reply string) {
+func parseReply(reply string, context map[string]string) {
+
+	if context == nil {
+		context = map[string]string{}
+	}
+
 	fields, err := parseFields(reply)
 	if err != nil {
 		fmt.Println("Parse error:", err)
 		return
 	}
 
-	if len(fields) < 2 {
-		fmt.Println("Invalid reply format:", reply)
+	if len(fields) == 0 {
+		fmt.Println("parseReply: No reply.")
 		return
 	}
 
 	status := fields[0]
-	message := fields[1]
 
-	if status == "FAIL" {
-		fmt.Println("Error:", message)
-	} else {
-		fmt.Println("Success:", message)
+	switch status {
+
+	case "FAIL":
+
+		if len(fields) >= 2 {
+			fmt.Println("Error:", fields[1])
+		} else {
+			fmt.Println("Operation Failed")
+		}
+
+	case "CREATEACCOUNTSUCCESS":
+
+		if len(fields) >= 2 {
+			fmt.Println("Created Successfully.")
+			fmt.Println("Account Number:", fields[1])
+		} else {
+			fmt.Println("Invalid reply format.", reply)
+		}
+
+	case "CLOSESUCCESS":
+
+		fmt.Println("Closed Successfully.")
+
+	case "DEPOSITSUCCESS":
+
+		currency := context["currency"]
+		if len(fields) >= 2 {
+			fmt.Println("Deposit Successful.")
+			fmt.Println("New Balance:", fields[1])
+		} else {
+			fmt.Println("Invalid reply format.", reply, currency)
+		}
+
+	case "WITHDRAWSUCCESS":
+
+		currency := context["currency"]
+		if len(fields) >= 2 {
+			fmt.Println("Withdraw Successful.")
+			fmt.Println("New Balance:", fields[1])
+		} else {
+			fmt.Println("Invalid reply format.", reply, currency)
+		}
+
+	case "VIEWSUCCESS":
+
+		if len(fields) < 3 {
+			fmt.Println("Balance List Empty")
+			return
+		}
+
+		fmt.Println("Current Balance:")
+
+		for i := 1; i+1 < len(fields); i += 2 {
+			fmt.Printf("%s %s\n", fields[i], fields[i+1])
+		}
+
+	case "TRANSFERSUCCESS":
+		if len(fields) >= 2 {
+			fmt.Println("Transfer Successful.")
+		}
+
+		fmt.Println("Current Balance:")
+
+		for i := 1; i+1 < len(fields); i += 2 {
+			fmt.Printf("%s %s\n", fields[i], fields[i+1])
+		}
+
+	case "MONITORSUCCESS":
+
+		seconds := context["seconds"]
+		fmt.Println("Callback Registered Successfully for", seconds, "seconds.")
+
+	case "CALLBACK":
+
+		// Rebuild remaining message after CALLBACK prefix
+		if len(fields) > 1 {
+
+			remaining := strings.Join(fields[1:], ":")
+
+			fmt.Println("Callback:", remaining)
+
+			// Parse normally if callback contains protocol reply
+			parseReply(remaining, context)
+
+		} else {
+			fmt.Println("Invalid reply format.", reply)
+		}
+	
+	default:
+		fmt.Println("Server Reply:", status)
+
+		if len(fields) > 1 {
+			for _, v := range fields[1:] {
+				fmt.Println(v)
+			}
+		}
 	}
 }
 
