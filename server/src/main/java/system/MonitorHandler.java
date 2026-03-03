@@ -41,6 +41,7 @@ public class MonitorHandler {
                 try {
                     DatagramPacket sendPacket = new DatagramPacket(responseBytes, responseBytes.length, ip, info.port);
                     if (Math.random() > packetLossRate) socket.send(sendPacket);
+                    else{ System.out.println("!!!!!!Packet Loss!!!!!!"); }
                 } catch (IOException e) {
                     System.out.println("Failed to send to " + ip);
                 }

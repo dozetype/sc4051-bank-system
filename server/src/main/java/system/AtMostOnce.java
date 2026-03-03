@@ -29,7 +29,7 @@ public class AtMostOnce implements InvocationSemantic{
         else if ("MONITOR".equals(parts.get(1))){
             reply = monitorHandler.register(parts.get(2), packet.getAddress(), packet.getPort());
         }
-        else reply = handler.handleRequest(parts);
+        else reply = handler.handleRequest(parts.subList(1, parts.size()));
 
         processedRequest.put(parts.getFirst(), reply); // Map UUID to Reply
         return reply;

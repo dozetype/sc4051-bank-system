@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"net"
+	"strconv"
 	"strings"
 	"time"
-	"strconv"
-	"math/rand"
 )
 
 // ===== UDP Listener =====
@@ -53,13 +53,13 @@ func sendRequestReceiveReply(conn *net.UDPConn, request string) (string, error) 
 
 // ===== Invocation Semantics =====
 func defaultInvocation(conn *net.UDPConn, request string) (string, error) {
-	packetLossProbability := 0.3
+	packetLossProbability := 0.5
 
 	if rand.Float64() < packetLossProbability {
 		fmt.Println("Simulating packet loss for request:", request)
 		return "", fmt.Errorf("Simulated packet loss.")
 	}
-	
+
 	_, err := conn.Write([]byte(request))
 	if err != nil {
 		fmt.Println("Send error:", err)
@@ -119,7 +119,7 @@ func atMostOnce(conn *net.UDPConn, request string, retries int) (string, error) 
 
 	for i := 0; i < retries; i++ {
 
-		reply, err := defaultInvocation(conn, request)
+		reply, err := defaultInvocation(conn, fullRequest)
 		if err == nil {
 			return reply, nil
 		}

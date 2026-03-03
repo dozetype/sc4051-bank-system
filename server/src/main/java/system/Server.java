@@ -66,6 +66,7 @@ public class Server {
 
                 // Simulating Packet Loss
                 if (Math.random() > packetLossRate) socket.send(sendPacket);
+                else{ System.out.println("!!!!!!Packet Loss!!!!!!"); }
                 monitorHandler.callback(("8:CALLBACK"+reply).getBytes(StandardCharsets.UTF_8), socket);
             }
         } catch (Exception e) {
