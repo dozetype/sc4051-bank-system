@@ -10,7 +10,7 @@ import (
 
 // ===== Constants =====
 const (
-	SERVER_IP   = "localhost"
+	SERVER_IP   = "10.96.183.47"
 	SERVER_PORT = 2222
 	TIMEOUT_MS  = 3000
 	BUFFER_SIZE = 512
@@ -96,7 +96,7 @@ func main() {
 }
 
 // ===== Invocation Menu =====
-func invocationMenu(input *bufio.Reader){
+func invocationMenu(input *bufio.Reader) {
 	mode, err := showMenu(input, invocationMenuObj)
 	if err != nil {
 		fmt.Println("Input error:", err)

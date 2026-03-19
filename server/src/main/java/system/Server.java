@@ -40,7 +40,7 @@ public class Server {
 
     private void run(){
         RequestHandler handler = new RequestHandler();
-        MonitorHandler monitorHandler = new MonitorHandler(packetLossRate);
+        MonitorHandler monitorHandler = new MonitorHandler();
         
         try (DatagramSocket socket = new DatagramSocket(PORT)) {
             System.out.println("\n^^^^^^^Server running on port " + PORT + "...^^^^^^^");

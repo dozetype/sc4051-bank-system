@@ -10,11 +10,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public class MonitorHandler {
     private final Map<InetAddress, ClientInfo> clients = new ConcurrentHashMap<>();
     private final ParseHandler parse = new ParseHandler();
-    private final double packetLossRate;
-
-    public MonitorHandler(double packetLossRate){
-        this.packetLossRate = packetLossRate;
-    }
 
     /**
      * @param timeString
@@ -34,18 +29,27 @@ public class MonitorHandler {
     public void callback(byte[] responseBytes, DatagramSocket socket) {
         long currTime = System.currentTimeMillis();
 
-        clients.forEach((ip, info) -> {
+        // Use an iterator or removeIf to clean up expired clients safely
+        clients.entrySet().removeIf(entry -> {
+            InetAddress ip = entry.getKey();
+            ClientInfo info = entry.getValue();
+
             if (info.expiryTime < currTime) {
-                clients.remove(ip);
+                sendUpdate("14:MONITORTIMESUP".getBytes(), ip, info.port, socket);
+                return true; // Removes from map
             } else {
-                try {
-                    DatagramPacket sendPacket = new DatagramPacket(responseBytes, responseBytes.length, ip, info.port);
-                    if (Math.random() > packetLossRate) socket.send(sendPacket);
-                    else{ System.out.println("!!!!!!Packet Loss!!!!!!"); }
-                } catch (IOException e) {
-                    System.out.println("Failed to send to " + ip);
-                }
+                sendUpdate(responseBytes, ip, info.port, socket);
+                return false; // Keeps in map
             }
         });
+    }
+
+    private void sendUpdate(byte[] data, InetAddress ip, int port, DatagramSocket socket) {
+        try {
+            DatagramPacket packet = new DatagramPacket(data, data.length, ip, port);
+            socket.send(packet);
+        } catch (IOException e) {
+            System.err.println("Error sending to " + ip + ":" + port);
+        }
     }
 }
