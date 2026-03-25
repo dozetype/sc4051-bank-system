@@ -53,9 +53,8 @@ func sendRequestReceiveReply(conn *net.UDPConn, request string) (string, error) 
 
 // ===== Invocation Semantics =====
 func defaultInvocation(conn *net.UDPConn, request string) (string, error) {
-	packetLossProbability := 0.1
 
-	if rand.Float64() < packetLossProbability {
+	if rand.Float64() < PACKET_LOSS_PROBABILITY {
 		fmt.Println("Simulating packet loss for request:", request)
 		return "", fmt.Errorf("Simulated packet loss.")
 	}

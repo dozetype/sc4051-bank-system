@@ -443,7 +443,13 @@ func parseReply(reply string, context map[string]string) {
 		// Rebuild remaining message after CALLBACK prefix
 		if len(fields) > 1 {
 
-			remaining := strings.Join(fields[1:], ":")
+			var b strings.Builder
+			for _, f := range fields[1:] {
+				b.WriteString(strconv.Itoa(len(f)))
+				b.WriteByte(':')
+				b.WriteString(f)
+			}
+			remaining := b.String()
 
 			fmt.Println("Callback:", remaining)
 

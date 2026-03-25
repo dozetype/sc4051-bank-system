@@ -14,6 +14,7 @@ const (
 	SERVER_PORT = 2222
 	TIMEOUT_MS  = 3000
 	BUFFER_SIZE = 512
+	PACKET_LOSS_PROBABILITY = 0.1
 )
 
 type InvocationMode int
@@ -43,6 +44,7 @@ var mainMenuObj = Menu{
 		"View Balance",
 		"Transfer",
 		"Register for Updates",
+		"Exit",
 	},
 }
 
@@ -147,6 +149,8 @@ func mainMenu(input *bufio.Reader, conn *net.UDPConn) {
 			handleTransfer(input, conn)
 		case "7":
 			handleRegister(input, conn)
+		case "8":
+			exit()
 		default:
 			fmt.Println("Invalid option.")
 		}
