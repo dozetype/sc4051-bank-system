@@ -44,6 +44,11 @@ func handleCreateAccount(input *bufio.Reader, conn *net.UDPConn) {
 		fmt.Println("Input error:", err)
 		return
 	}
+	depositInt, err := strconv.Atoi(deposit)
+	if err != nil || depositInt < 0 {
+		fmt.Println("Invalid deposit amount.")
+		return
+	}
 
 	requestProtocol := fmt.Sprintf("13:CREATEACCOUNT%d:%s%d:%s%d:%s%d:%s",
 		len(user), user,
@@ -120,6 +125,11 @@ func handleDeposit(input *bufio.Reader, conn *net.UDPConn) {
 		fmt.Println("Input error:", err)
 		return
 	}
+	amountInt, err := strconv.Atoi(amount)
+	if err != nil || amountInt <= 0 {
+		fmt.Println("Invalid deposit amount.")
+		return
+	}
 
 	requestProtocol := fmt.Sprintf("7:DEPOSIT%d:%s%d:%s%d:%s%d:%s%d:%s",
 		len(name), name,
@@ -170,6 +180,11 @@ func handleWithdraw(input *bufio.Reader, conn *net.UDPConn) {
 	amount, err := readLine(input)
 	if err != nil {
 		fmt.Println("Input error:", err)
+		return
+	}
+	amountInt, err := strconv.Atoi(amount)
+	if err != nil || amountInt <= 0 {
+		fmt.Println("Invalid withdraw amount.")
 		return
 	}
 	amount = "-" + amount
@@ -255,6 +270,11 @@ func handleTransfer(input *bufio.Reader, conn *net.UDPConn) {
 	amount, err := readLine(input)
 	if err != nil {
 		fmt.Println("Input error:", err)
+		return
+	}
+	amountInt, err := strconv.Atoi(amount)
+	if err != nil || amountInt <= 0 {
+		fmt.Println("Invalid transfer amount.")
 		return
 	}
 
