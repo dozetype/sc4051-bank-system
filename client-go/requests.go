@@ -32,10 +32,9 @@ func handleCreateAccount(input *bufio.Reader, conn *net.UDPConn) {
 		return
 	}
 
-	fmt.Print("Currency: ")
-	currency, err := readLine(input)
+	currency, err := currencyTypeInput(input)
 	if err != nil {
-		fmt.Println("Input error:", err)
+		fmt.Println(err)
 		return
 	}
 
@@ -109,10 +108,9 @@ func handleDeposit(input *bufio.Reader, conn *net.UDPConn) {
 		return
 	}
 
-	fmt.Print("Currency: ")
-	currency, err := readLine(input)
+	currency, err := currencyTypeInput(input)
 	if err != nil {
-		fmt.Println("Input error:", err)
+		fmt.Println(err)
 		return
 	}
 
@@ -139,6 +137,7 @@ func handleDeposit(input *bufio.Reader, conn *net.UDPConn) {
 	
 	context := map[string]string{
 		"currency": currency,
+		"amount": amount,
 	}
 
 	parseReply(reply, context)
@@ -161,10 +160,9 @@ func handleWithdraw(input *bufio.Reader, conn *net.UDPConn) {
 		return
 	}
 
-	fmt.Print("Currency: ")
-	currency, err := readLine(input)
+	currency, err := currencyTypeInput(input)
 	if err != nil {
-		fmt.Println("Input error:", err)
+		fmt.Println(err)
 		return
 	}
 
@@ -192,6 +190,7 @@ func handleWithdraw(input *bufio.Reader, conn *net.UDPConn) {
 
 	context := map[string]string{
 		"currency": currency,
+		"amount": amount,
 	}
 
 	parseReply(reply, context)
@@ -246,10 +245,9 @@ func handleTransfer(input *bufio.Reader, conn *net.UDPConn) {
 		return
 	}
 
-	fmt.Print("Currency: ")
-	currency, err := readLine(input)
+	currency, err := currencyTypeInput(input)
 	if err != nil {
-		fmt.Println("Input error:", err)
+		fmt.Println(err)
 		return
 	}
 
@@ -347,6 +345,38 @@ func promptVerification(input *bufio.Reader) (string, string, string, error) {
 	return name, accountNumber, password, nil
 }
 
+func currencyTypeInput(input *bufio.Reader) (string, error) {
+	fmt.Println("Select Currency Type:")
+	fmt.Println("1: SGD")
+	fmt.Println("2: EUR")
+	fmt.Println("3: JPY")
+	fmt.Println("4: USD")
+	fmt.Print("Choice: ")
+
+	choiceStr, err := readLine(input)
+	if err != nil {
+		return "", fmt.Errorf("input error: %v", err)
+	}
+
+	choice, err := strconv.Atoi(choiceStr)
+	if err != nil {
+		return "", fmt.Errorf("invalid input: %v", err)
+	}
+
+	switch choice {
+	case 1:
+		return "SGD", nil
+	case 2:
+		return "EUR", nil
+	case 3:
+		return "JPY", nil
+	case 4:
+		return "USD", nil
+	default:
+		return "", fmt.Errorf("invalid choice")
+	}
+}
+
 func parseReply(reply string, context map[string]string) {
 
 	if context == nil {
@@ -390,21 +420,24 @@ func parseReply(reply string, context map[string]string) {
 		fmt.Println("Closed Successfully.")
 
 	case "DEPOSITSUCCESS":
-
 		currency := context["currency"]
-		if len(fields) >= 2 {
-			fmt.Println("Deposit Successful.")
-			fmt.Println("New Balance:", fields[1])
-		} else {
-			fmt.Println("Invalid reply format.", reply, currency)
-		}
+		amountStr := context["amount"]
 
-	case "WITHDRAWSUCCESS":
-
-		currency := context["currency"]
 		if len(fields) >= 2 {
-			fmt.Println("Withdraw Successful.")
-			fmt.Println("New Balance:", fields[1])
+			// Determine whether it was a deposit or withdraw
+			amountFloat, err := strconv.ParseFloat(amountStr, 64)
+			if err != nil {
+				fmt.Println("Invalid amount in context:", amountStr)
+				return
+			}
+
+			if amountFloat >= 0 {
+				fmt.Println("Deposit Successful.")
+			} else {
+				fmt.Println("Withdraw Successful.")
+			}
+
+			fmt.Printf("New Balance (%s): %s\n", currency, fields[1])
 		} else {
 			fmt.Println("Invalid reply format.", reply, currency)
 		}
@@ -437,6 +470,9 @@ func parseReply(reply string, context map[string]string) {
 
 		seconds := context["seconds"]
 		fmt.Println("Callback Registered Successfully for", seconds, "seconds.")
+
+	case "MONITORTIMESUP":
+		fmt.Println("Callback expired.")
 
 	case "CALLBACK":
 
