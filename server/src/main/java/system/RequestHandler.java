@@ -41,6 +41,11 @@ public class RequestHandler {
         }
     }
 
+    /**
+     * Registers a new account in the system with an initial balance.
+     * @param data A list containing: ["CREATEACCOUNT", Username, Password, CurrencyType, InitialBalance]
+     * @return A formatted string "CREATEACCOUNTSUCCESS" followed by the newly generated Account ID.
+     */
     private String createAccount(List<String> data) {
         if (data.size() < 5) return "23:FAIL: Missing arguments";
 
@@ -61,9 +66,7 @@ public class RequestHandler {
     /**
      *
      * @param data
-     * (1) Username,
-     * (2) ID,
-     * (3) Password
+     * @param data A list containing: ["CLOSEACCOUNT", Username, AccountID, Password]
      * @return Success or Error Message
      */
     private String closeAccount(List<String> data) {
@@ -81,6 +84,12 @@ public class RequestHandler {
         return "12:CLOSESUCCESS";
     }
 
+    /**
+     * Deposits a specified amount of a specific currency into an account.
+     * @param data A list containing: ["DEPOSIT", Username, AccountID, Password, CurrencyType, Amount]
+     * @return A formatted string "DEPOSITSUCCESS" followed by the new balance of that currency, 
+     * or an error message if authentication or validation fails.
+     */
     private String deposit(List<String> data) {
         if (data.size() < 6) return "23:FAIL: Missing arguments";
 
@@ -103,6 +112,12 @@ public class RequestHandler {
         return "14:DEPOSITSUCCESS"+currBalance.length()+":"+currBalance;
     }
 
+    /**
+     * Retrieves and formats all currency balances for a specific account.
+     * @param data A list containing: ["VIEW", Username, AccountID, Password]
+     * @return A string starting with "VIEWSUCCESS" followed by a list of 
+     * formatted currency names and their respective balances.
+     */
     private String view(List<String> data) {
         if (data.size() < 4) return "23:FAIL: Missing arguments";
 
@@ -129,16 +144,12 @@ public class RequestHandler {
     }
 
     /**
-     * @param data
-     * (1) Username,
-     * (2) ID,
-     * (3) Password,
-     * (4) CurrencyType,
-     * (5) Amount,
-     * (6) Reciever ID
-     * @return
+     * @param data A list containing: ["TRANSFER", Username, AccountID, Password, 
+     *                                  CurrencyType, Amount, Reciever ID]
+     * @return A string indicating failure (e.g., "FAIL: reasons") or success 
+     *         followed by the sender's updated balance list.
      */
-    private String transfer(List<String> data) { // MAKE SURE TO NOT TRANSFER NEGATIVE AMOUNT ON CLIENT SIDE
+    private String transfer(List<String> data) {
         if (data.size() < 7) return "23:FAIL: Missing arguments";
 
         // 1. Parse and Basic Validation
@@ -150,6 +161,9 @@ public class RequestHandler {
             return "27:FAIL: Invalid currency type";
         }
         float amount = Float.parseFloat(data.get(5));
+        if (amount < 0) {
+            return "36:FAIL: No transfering negative amount";
+        }
         Integer recieverID = parse.tryParseInt(data.get(6));
 
         // 2. Authentication
@@ -182,11 +196,11 @@ public class RequestHandler {
     }
 
     /**
-     *
-     * @param acc
-     * @param password
-     * @param username Add Username only when it needs to check against it with acc
-     * @return
+     * Verifies account credentials before allowing an operation.
+     * @param acc The account object retrieved from the database.
+     * @param password The password string provided by the user.
+     * @param username The username provided (optional, checked only if not null).
+     * @return null if authentication succeeds; an error string if it fails.
      */
     private String authenticate(Account acc, String password, String username) {
         if (acc == null) return "23:FAIL: Account not found";

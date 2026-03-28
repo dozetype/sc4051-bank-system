@@ -22,11 +22,11 @@ public class AtMostOnce implements InvocationSemantic{
         System.out.println("Received: " + rawRequest + " from: "+ packet.getAddress() +" port"+ packet.getPort());
 
         String uuid = parts.get(0);
-        if (processedRequest.containsKey(uuid)) {
+        if (processedRequest.containsKey(uuid)) { // Duplicate Request Detected
             System.out.println("Duplicate detected for UUID: " + uuid);
             return processedRequest.get(uuid);
         }
-        else if ("MONITOR".equals(parts.get(1))){
+        else if ("MONITOR".equals(parts.get(1))){ // Request for Monitor Detected
             reply = monitorHandler.register(parts.get(2), packet.getAddress(), packet.getPort());
         }
         else reply = handler.handleRequest(parts.subList(1, parts.size()));
