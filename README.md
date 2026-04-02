@@ -106,3 +106,9 @@ New accounts receive the next integer ID from the server’s counter after these
 Commands are length-prefixed tokens; the **first** logical field is the command name (e.g. `CREATEACCOUNT`, `CLOSEACCOUNT`, `DEPOSIT`, `VIEW`, `TRANSFER`, `MONITOR`). The server responds with length-prefixed fields as well (see `RequestHandler` return strings for success/error tokens like `CREATEACCOUNTSUCCESS`, `FAIL`, etc.).
 
 At-most-once requests from the client add a **leading** `len(id):id` block before the usual command fields; the server strips the id in `AtMostOnce` before dispatching to `RequestHandler` / `MonitorHandler`.
+
+# Contributors
+| Name              | GitHub Username                          |
+| ----------------- | ---------------------------------------- |
+| Chen Xing Wei     | [dozetype](https://github.com/dozetype)  |
+| Phua Wei Jie      | [Alpths](https://github.com/Alpths)      |
