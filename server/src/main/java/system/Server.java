@@ -5,9 +5,9 @@ import java.net.DatagramSocket;
 import java.nio.charset.StandardCharsets;
 
 public class Server {
-    private static final int PORT = 2222;
+    private static final int PORT        = 2222;
     private static final int BUFFER_SIZE = 1000;
-    private final double packetLossRate = 0.1; // Choose values between 0.0 and 1.0
+    private final double packetLossRate  = 0.5; // Choose values between 0.0 and 1.0
     private InvocationSemantic invocationSemantic;
 
     public static void main(String[] args) {

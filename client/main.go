@@ -10,11 +10,11 @@ import (
 
 // ===== Constants =====
 const (
-	SERVER_IP   = "localhost"
-	SERVER_PORT = 2222
-	TIMEOUT_MS  = 3000
-	BUFFER_SIZE = 512
-	PACKET_LOSS_PROBABILITY = 0.1
+	SERVER_IP               = "10.96.183.47"
+	SERVER_PORT             = 2222
+	TIMEOUT_MS              = 3000
+	BUFFER_SIZE             = 512
+	PACKET_LOSS_PROBABILITY = 0.5
 )
 
 type InvocationMode int
