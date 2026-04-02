@@ -61,7 +61,7 @@ From the `java` directory:
 
 ```bash
 javac system/*.java
-java system.server
+java system.Server
 ```
 
 On startup you will be prompted to select **At-Least-Once** (`1`) or **At-Most-Once** (`2`). The server then listens on UDP **port 2222**.
