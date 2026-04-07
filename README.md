@@ -110,5 +110,5 @@ At-most-once requests from the client add a **leading** `len(id):id` block befor
 # Contributors
 | Name              | GitHub Username                          |
 | ----------------- | ---------------------------------------- |
-| Chen Xing Wei     | [dozetype](https://github.com/dozetype)  |
+| Chen Xingwei      | [dozetype](https://github.com/dozetype)  |
 | Phua Wei Jie      | [Alpths](https://github.com/Alpths)      |
